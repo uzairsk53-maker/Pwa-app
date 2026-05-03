@@ -20,10 +20,22 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          query: ['@tanstack/react-query'],
-          ui: ['framer-motion'],
+        manualChunks(id) {
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/react-router-dom')) {
+            return 'vendor';
+          }
+
+          if (id.includes('node_modules/@tanstack/react-query')) {
+            return 'query';
+          }
+
+          if (id.includes('node_modules/framer-motion')) {
+            return 'ui';
+          }
+
+          if (id.includes('node_modules')) {
+            return 'vendor';
+          }
         },
       },
     },
