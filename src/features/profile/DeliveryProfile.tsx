@@ -7,7 +7,6 @@ import { z } from 'zod';
 import { motion } from 'framer-motion';
 import {
   User,
-  Store,
   Phone,
   Mail,
   MapPin,
@@ -16,25 +15,21 @@ import {
   LogOut,
   ChevronRight,
   Shield,
-  Star,
-  Award,
+  Truck,
 } from 'lucide-react';
-import { shopkeeperApi } from '@/services/shopkeeperApi';
+import { deliveryApi } from '@/services/deliveryApi';
 import { useAuthStore } from '@/store/authStore';
-import { useCartStore } from '@/store/cartStore';
 import { STALE_TIMES } from '@/constants';
 import { DashboardSkeleton } from '@/components/ui/Skeleton';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { LocationPickerMap } from '@/components/ui/LocationPickerMap';
-import { DeliveryProfile } from './DeliveryProfile';
 import toast from 'react-hot-toast';
 
 const editProfileSchema = z.object({
-  shopName: z.string().min(2).optional(),
-  ownerName: z.string().min(2).optional(),
-  address: z.string().min(3).optional(),
-  city: z.string().min(2).optional(),
+  name: z.string().min(2).optional(),
+  vehicleNo: z.string().optional(),
+  city: z.string().optional(),
   email: z.string().email().optional().or(z.literal('')),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
@@ -42,29 +37,23 @@ const editProfileSchema = z.object({
 
 type EditProfileForm = z.infer<typeof editProfileSchema>;
 
-export default function ProfilePage() {
-  const user = useAuthStore((s) => s.user);
+export function DeliveryProfile() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const logout = useAuthStore((s) => s.logout);
-  const clearCart = useCartStore((s) => s.clearCart);
   const [showEditSheet, setShowEditSheet] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  if (user?.role === 'DELIVERY') {
-    return <DeliveryProfile />;
-  }
-
-  const { data: dashboard, isLoading } = useQuery({
-    queryKey: ['dashboard'],
-    queryFn: shopkeeperApi.getDashboard,
+  const { data: response, isLoading } = useQuery({
+    queryKey: ['delivery-profile'],
+    queryFn: deliveryApi.getProfile,
     staleTime: STALE_TIMES.PROFILE,
   });
 
   const updateMutation = useMutation({
-    mutationFn: shopkeeperApi.updateProfile,
+    mutationFn: deliveryApi.updateProfile,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['delivery-profile'] });
       toast.success('Profile updated!');
       setShowEditSheet(false);
     },
@@ -73,25 +62,23 @@ export default function ProfilePage() {
     },
   });
 
-  const profile = dashboard?.profile;
+  const profile = response?.data?.profile;
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-    reset,
     setValue,
     watch,
   } = useForm<EditProfileForm>({
     resolver: zodResolver(editProfileSchema),
     values: {
-      shopName: profile?.shopName || '',
-      ownerName: profile?.ownerName || '',
-      address: profile?.address || '',
+      name: profile?.name || '',
+      vehicleNo: profile?.vehicleNo || '',
       city: profile?.city || '',
       email: profile?.email || '',
-      latitude: (profile as any)?.latitude ? Number((profile as any).latitude) : undefined,
-      longitude: (profile as any)?.longitude ? Number((profile as any).longitude) : undefined,
+      latitude: profile?.latitude ? Number(profile.latitude) : undefined,
+      longitude: profile?.longitude ? Number(profile.longitude) : undefined,
     },
   });
 
@@ -109,7 +96,6 @@ export default function ProfilePage() {
 
   const handleLogout = () => {
     logout();
-    clearCart();
     navigate('/login', { replace: true });
   };
 
@@ -136,7 +122,6 @@ export default function ProfilePage() {
     );
   };
 
-  // Watch map coordinates
   const currentLat = watch('latitude');
   const currentLng = watch('longitude');
   const mapPosition: [number, number] = 
@@ -147,21 +132,21 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       {/* Profile Header */}
-      <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-black px-5 pt-12 pb-20 relative overflow-hidden">
+      <div className="bg-gradient-to-br from-indigo-800 via-indigo-900 to-black px-5 pt-12 pb-20 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10">
-          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-emerald-400" />
-          <div className="absolute -bottom-10 -left-10 w-32 h-32 rounded-full bg-teal-400" />
+          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-indigo-400" />
+          <div className="absolute -bottom-10 -left-10 w-32 h-32 rounded-full bg-purple-400" />
         </div>
         <div className="relative z-10 flex items-center gap-4">
-          <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl flex items-center justify-center shadow-lg">
-            <User size={28} className="text-white" />
+          <div className="w-16 h-16 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-2xl flex items-center justify-center shadow-lg">
+            <Truck size={28} className="text-white" />
           </div>
           <div className="flex-1">
-            <h1 className="text-xl font-bold text-white">{profile?.ownerName || 'User'}</h1>
-            <p className="text-gray-400 text-sm">{profile?.shopName}</p>
+            <h1 className="text-xl font-bold text-white">{profile?.name || 'Delivery Partner'}</h1>
+            <p className="text-indigo-200 text-sm">{profile?.vehicleNo || 'No vehicle specified'}</p>
             <div className="flex items-center gap-2 mt-1">
-              <Shield size={12} className="text-emerald-400" />
-              <span className="text-xs text-emerald-400 font-medium">Verified Shopkeeper</span>
+              <Shield size={12} className="text-indigo-400" />
+              <span className="text-xs text-indigo-400 font-medium">Verified Partner</span>
             </div>
           </div>
           <button
@@ -174,46 +159,23 @@ export default function ProfilePage() {
       </div>
 
       <div className="px-4 -mt-14 relative z-10 space-y-4 pb-8">
-        {/* Score Badge */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white dark:bg-gray-800 rounded-3xl p-4 shadow-lg flex items-center gap-4"
-        >
-          <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center">
-            <Award size={24} className="text-white" />
-          </div>
-          <div className="flex-1">
-            <p className="text-xs text-gray-500 dark:text-gray-400">Credit Score</p>
-            <p className="text-2xl font-extrabold text-gray-900 dark:text-white">
-              {dashboard?.creditSummary?.score?.toLocaleString() ?? 0}
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-xs text-gray-500">Points</p>
-            <p className="text-lg font-bold text-emerald-600">{dashboard?.creditSummary?.points ?? 0}</p>
-          </div>
-        </motion.div>
-
         {/* Info Cards */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-white dark:bg-gray-800 rounded-2xl divide-y divide-gray-100 dark:divide-gray-700 overflow-hidden"
+          className="bg-white dark:bg-gray-800 rounded-2xl divide-y divide-gray-100 dark:divide-gray-700 overflow-hidden shadow-sm"
         >
           {[
-            { icon: Store, label: 'Shop Name', value: profile?.shopName },
-            { icon: User, label: 'Owner', value: profile?.ownerName },
-            { icon: Phone, label: 'Phone', value: profile?.phone || profile?.user?.phone },
-            { icon: Mail, label: 'Email', value: profile?.email || profile?.user?.email || 'Not set' },
-            { icon: MapPin, label: 'Address', value: profile?.address || 'Not set' },
+            { icon: User, label: 'Name', value: profile?.name },
+            { icon: Phone, label: 'Phone', value: profile?.phone },
+            { icon: Truck, label: 'Vehicle No.', value: profile?.vehicleNo || 'Not set' },
+            { icon: Mail, label: 'Email', value: profile?.email || 'Not set' },
             { icon: Building, label: 'City', value: profile?.city || 'Not set' },
             { 
               icon: MapPin, 
-              label: 'Location (GPS)', 
-              value: (profile as any)?.latitude && (profile as any)?.longitude 
-                ? `${Number((profile as any).latitude).toFixed(4)}, ${Number((profile as any).longitude).toFixed(4)}` 
+              label: 'Live Location (GPS)', 
+              value: profile?.latitude && profile?.longitude 
+                ? `${Number(profile.latitude).toFixed(4)}, ${Number(profile.longitude).toFixed(4)}` 
                 : 'Not set' 
             },
           ].map((item) => (
@@ -235,7 +197,7 @@ export default function ProfilePage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
+          transition={{ delay: 0.1 }}
           className="space-y-2"
         >
           <button
@@ -254,10 +216,10 @@ export default function ProfilePage() {
             disabled={updateMutation.isPending}
             className="w-full bg-white dark:bg-gray-800 rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-sm"
           >
-            <div className="w-9 h-9 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center">
-              <MapPin size={16} className="text-emerald-600" />
+            <div className="w-9 h-9 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center">
+              <MapPin size={16} className="text-indigo-600" />
             </div>
-            <span className="text-sm font-medium text-gray-900 dark:text-white flex-1 text-left">Update Store Location (GPS)</span>
+            <span className="text-sm font-medium text-gray-900 dark:text-white flex-1 text-left">Update Live Location</span>
             <ChevronRight size={16} className="text-gray-400" />
           </button>
 
@@ -278,10 +240,9 @@ export default function ProfilePage() {
       <BottomSheet isOpen={showEditSheet} onClose={() => setShowEditSheet(false)} title="Edit Profile">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {[
-            { name: 'shopName' as const, label: 'Shop Name', icon: Store },
-            { name: 'ownerName' as const, label: 'Owner Name', icon: User },
+            { name: 'name' as const, label: 'Full Name', icon: User },
+            { name: 'vehicleNo' as const, label: 'Vehicle Number', icon: Truck },
             { name: 'email' as const, label: 'Email', icon: Mail },
-            { name: 'address' as const, label: 'Address', icon: MapPin },
             { name: 'city' as const, label: 'City', icon: Building },
           ].map((field) => (
             <div key={field.name}>
@@ -292,7 +253,7 @@ export default function ProfilePage() {
                 <field.icon size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   {...register(field.name)}
-                  className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               {errors[field.name] && (
@@ -305,12 +266,12 @@ export default function ProfilePage() {
           <div className="pt-2">
             <div className="flex items-center justify-between mb-2">
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Store Location (Pin on Map)
+                Live Location (Pin on Map)
               </label>
               <button 
                 type="button" 
                 onClick={handleUpdateLocation}
-                className="text-xs text-emerald-600 font-bold bg-emerald-50 px-2 py-1 rounded-md"
+                className="text-xs text-indigo-600 font-bold bg-indigo-50 px-2 py-1 rounded-md"
               >
                 Use GPS
               </button>
@@ -327,7 +288,7 @@ export default function ProfilePage() {
           <button
             type="submit"
             disabled={updateMutation.isPending}
-            className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold rounded-2xl disabled:opacity-50"
+            className="w-full py-3.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold rounded-2xl disabled:opacity-50"
           >
             {updateMutation.isPending ? 'Updating...' : 'Save Changes'}
           </button>
@@ -340,7 +301,7 @@ export default function ProfilePage() {
         onClose={() => setShowLogoutModal(false)}
         onConfirm={handleLogout}
         title="Logout"
-        message="Are you sure you want to logout? Your cart will be cleared."
+        message="Are you sure you want to logout?"
         confirmText="Logout"
         variant="danger"
       />

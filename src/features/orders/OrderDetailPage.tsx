@@ -17,6 +17,7 @@ import { orderApi } from '@/services/orderApi';
 import { STALE_TIMES, ORDER_STATUS_CONFIG, PAYMENT_TYPE_LABELS, ORDER_TYPE_LABELS } from '@/constants';
 import { DashboardSkeleton } from '@/components/ui/Skeleton';
 import { formatCurrency, formatDateTime, getOrderStatusStep, getProductPrimaryImage } from '@/utils';
+import { useLiveTracking } from '@/hooks/useLiveTracking';
 
 const TIMELINE_STEPS = [
   { status: 'PENDING', label: 'Order Placed', icon: Clock },
@@ -25,6 +26,8 @@ const TIMELINE_STEPS = [
   { status: 'SHIPPED', label: 'Shipped', icon: Truck },
   { status: 'DELIVERED', label: 'Delivered', icon: CheckCircle2 },
 ];
+
+import { DeliveryTrackingMap } from '@/components/ui/DeliveryTrackingMap';
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -37,11 +40,36 @@ export default function OrderDetailPage() {
     staleTime: STALE_TIMES.ORDERS,
   });
 
+  // Safe extraction of values for the hook (before conditional returns)
+  const isTrackingActive = order?.status === 'SHIPPED' || order?.status === 'PACKED';
+  
+  // Delivery location: Shopkeeper's real location from DB, fallback to Jalgaon
+  const deliveryLocation: [number, number] = 
+    (order?.shopkeeper as any)?.latitude && (order?.shopkeeper as any)?.longitude 
+      ? [Number((order?.shopkeeper as any).latitude), Number((order?.shopkeeper as any).longitude)]
+      : [21.0107, 75.5679];
+
+  // Pickup location: Admin/Distributor location. Can be fetched from settings.
+  // Mocked for now to be ~2km away from delivery location so tracking looks realistic locally
+  const pickupLocation: [number, number] = [
+    deliveryLocation[0] - 0.015,
+    deliveryLocation[1] - 0.015
+  ];
+
+  const { liveLocation } = useLiveTracking(
+    id || '', 
+    isTrackingActive,
+    pickupLocation,
+    deliveryLocation
+  );
+
   if (isLoading) return <DashboardSkeleton />;
   if (!order) return null;
 
   const currentStep = getOrderStatusStep(order.status);
   const statusConfig = ORDER_STATUS_CONFIG[order.status];
+
+  // Derived coordinates are already calculated above
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-8">
@@ -68,6 +96,13 @@ export default function OrderDetailPage() {
       </div>
 
       <div className="px-4 py-4 space-y-4">
+        {/* Delivery Tracking Map */}
+        <DeliveryTrackingMap 
+          status={order.status} 
+          pickupLocation={pickupLocation}
+          deliveryLocation={deliveryLocation}
+          liveRiderLocation={liveLocation}
+        />
         {/* Order Timeline */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
