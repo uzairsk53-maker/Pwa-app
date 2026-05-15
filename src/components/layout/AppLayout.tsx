@@ -1,11 +1,14 @@
 import { Outlet } from 'react-router-dom';
 import { BottomNavigation } from './BottomNavigation';
-import { useOnlineStatus } from '@/hooks';
+import { useOnlineStatus, useDeliveryLocationBroadcaster } from '@/hooks';
 import { WifiOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function AppLayout() {
   const isOnline = useOnlineStatus();
+  
+  // Broadcast location globally if user is DELIVERY role
+  useDeliveryLocationBroadcaster();
 
   return (
     <div className="relative min-h-screen bg-gray-50 dark:bg-gray-950 max-w-[480px] mx-auto">

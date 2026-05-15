@@ -95,39 +95,7 @@ export function DeliveryTrackingMap({
     }
   }, [liveRiderLocation]);
 
-  useEffect(() => {
-    if (status !== 'SHIPPED' && status !== 'PACKED') return;
-    if (liveRiderLocation) return; // Disable simulation if we have live tracking
-
-    // Simulate rider movement for demo purposes if no live tracking is available
-    const interval = setInterval(() => {
-      progressRef.current += 0.02;
-      if (progressRef.current >= 1) {
-        progressRef.current = 1;
-        clearInterval(interval);
-        setEta(0);
-      } else {
-        // Simple linear interpolation along the path for demo
-        const segmentCount = routePath.length - 1;
-        const totalProgress = progressRef.current * segmentCount;
-        const currentSegment = Math.floor(totalProgress);
-        const segmentProgress = totalProgress - currentSegment;
-
-        if (currentSegment < segmentCount) {
-          const start = routePath[currentSegment];
-          const end = routePath[currentSegment + 1];
-          const lat = start[0] + (end[0] - start[0]) * segmentProgress;
-          const lng = start[1] + (end[1] - start[1]) * segmentProgress;
-          setRiderLocation([lat, lng]);
-          
-          // Update ETA
-          setEta(Math.max(1, Math.round(15 * (1 - progressRef.current))));
-        }
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [status, routePath, liveRiderLocation]);
+  // No fake simulation. Rider location only updates if real liveRiderLocation is provided.
 
   if (status === 'PENDING' || status === 'APPROVED') {
     return null; // Don\'t show map yet
@@ -139,6 +107,13 @@ export function DeliveryTrackingMap({
       animate={{ opacity: 1, y: 0 }}
       className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-xl border border-gray-100 dark:border-gray-800 ring-1 ring-black/5"
     >
+      <style>
+        {`
+          .leaflet-marker-icon {
+            transition: transform 2s linear !important;
+          }
+        `}
+      </style>
       <div className="p-5 border-b border-gray-100 dark:border-gray-700 bg-gradient-to-r from-emerald-500/10 to-transparent">
         <div className="flex items-start justify-between">
           <div>

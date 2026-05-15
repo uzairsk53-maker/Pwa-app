@@ -141,6 +141,15 @@ export interface Order {
   shopkeeper?: Shopkeeper & { user?: { phone: string; email: string | null } };
   deliveryBoy?: { phone: string; email: string | null } | null;
   products?: OrderItem[];
+  deliveryAssignments?: {
+    deliveryBoy?: {
+      id: string;
+      name: string;
+      phone: string;
+      latitude: string | number | null;
+      longitude: string | number | null;
+    };
+  }[];
 }
 
 export interface OrderListResponse {

@@ -1,37 +1,42 @@
 import { useState, useEffect } from 'react';
+import { orderApi } from '@/services/orderApi';
 
 export function useLiveTracking(orderId: string, isTrackingActive: boolean, defaultPickup: [number, number], defaultDrop: [number, number]) {
   const [liveLocation, setLiveLocation] = useState<[number, number] | null>(null);
 
   useEffect(() => {
-    if (!isTrackingActive) return;
+    if (!isTrackingActive || !orderId) return;
 
-    // TODO: In a real implementation, connect to WebSocket to get real-time delivery boy coordinates.
-    // Example:
-    // const socket = io(SOCKET_URL);
-    // socket.emit('joinTracking', { orderId });
-    // socket.on('locationUpdate', (data: { lat: number, lng: number }) => {
-    //   setLiveLocation([data.lat, data.lng]);
-    // });
-    // return () => socket.disconnect();
+    let timeoutId: NodeJS.Timeout;
+    let isMounted = true;
 
-    // Mocking real device geolocation using navigator.geolocation for demo
-    let watchId: number;
-    if ('geolocation' in navigator) {
-      watchId = navigator.geolocation.watchPosition(
-        (position) => {
-          setLiveLocation([position.coords.latitude, position.coords.longitude]);
-        },
-        (error) => {
-          console.warn("Geolocation tracking error (using fallback simulation): ", error);
-        },
-        { enableHighAccuracy: true, maximumAge: 10000 }
-      );
-    }
+    const fetchLiveLocation = async () => {
+      try {
+        const order = await orderApi.getOrderById(orderId);
+        if (order.deliveryAssignments && order.deliveryAssignments.length > 0) {
+          const boy = order.deliveryAssignments[0].deliveryBoy;
+          if (boy?.latitude && boy?.longitude) {
+            if (isMounted) {
+              setLiveLocation([Number(boy.latitude), Number(boy.longitude)]);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch live location:", error);
+      }
+
+      if (isMounted) {
+        // Poll every 10 seconds for updated location
+        timeoutId = setTimeout(fetchLiveLocation, 10000);
+      }
+    };
+
+    fetchLiveLocation();
 
     return () => {
-      if (watchId !== undefined && 'geolocation' in navigator) {
-        navigator.geolocation.clearWatch(watchId);
+      isMounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
       }
     };
   }, [orderId, isTrackingActive]);
